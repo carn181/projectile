@@ -42,6 +42,10 @@ void font_init(struct font *font, SDL_Renderer *renderer) {
 }
 
 void text_update(SDL_Renderer *renderer, struct font *font, const char *text, int x, int y){
+  if(font->surface != NULL){
+    SDL_DestroyTexture(font->texture);
+    SDL_FreeSurface(font->surface);
+  }
   font->surface = TTF_RenderText_Solid(font->ttf, text, font->color);
   font->texture = SDL_CreateTextureFromSurface(renderer, font->surface);
   
@@ -51,10 +55,10 @@ void text_update(SDL_Renderer *renderer, struct font *font, const char *text, in
   SDL_RenderCopy(renderer, font->texture, NULL, &dsrect);
 }
 
-void font_destroy(struct font font) {
-  SDL_DestroyTexture(font.texture);
-  SDL_FreeSurface(font.surface);
-  TTF_CloseFont(font.ttf);
+void font_destroy(struct font *font) {
+  SDL_DestroyTexture(font->texture);
+  SDL_FreeSurface(font->surface);
+  TTF_CloseFont(font->ttf);
 }
 
 
@@ -77,7 +81,7 @@ float projectilefunc(float x, float theta, float u, float g) {
 
 void drawprojectile(struct program *p) {
   SDL_SetRenderDrawColor(p->renderer, 250, 189, 47, 255);
-  for(float i = 0 ; i < 640 ; i += 0.1){
+  for(float i = 0 ; i < 640 ; i += 0.5){
     SDL_RenderDrawPointF(p->renderer, i,
 			 480-projectilefunc(i, degree2rad(p->projectile.angle),
 					p->projectile.u, p->projectile.g));
@@ -88,13 +92,13 @@ void scene_display(struct program *p) {
   clearscene(p);
   if(p->projectile.angle < 90)
     drawprojectile(p);
-  
+
   SDL_Rect bg = (SDL_Rect){290, 0, 350, 75};
   SDL_SetRenderDrawColor(p->renderer, 50, 48, 47, 50);
   SDL_RenderFillRect(p->renderer, &bg);
   
-  char *angle = (char *)calloc(9, sizeof(char));
-  char *u = (char *)calloc(20, sizeof(char));
+  char *angle = (char *)calloc(10, sizeof(char));
+  char *u = (char *)calloc(22, sizeof(char));
   sprintf(angle, "Angle: %.0f", p->projectile.angle);
   sprintf(u, "Initial Velocity: %.0f", p->projectile.u);
   
@@ -112,15 +116,15 @@ void scene_display(struct program *p) {
 }
 
 void event_handle(struct program *p) {
-  SDL_Event event = p->gevent;
-  while (SDL_PollEvent(&event)) {
-    switch (event.type) {
+  SDL_Event *event = &p->gevent;
+  while (SDL_PollEvent(event)) {
+    switch (event->type) {
     case SDL_QUIT:
       p->done = true;
       break;
       
     case SDL_KEYDOWN: {
-      switch (event.key.keysym.sym) {
+      switch (event->key.keysym.sym) {
       case SDLK_ESCAPE:
 	p->done = true;
 	break;
@@ -174,9 +178,9 @@ void end_program(struct program *p) {
   if(p->win){
     printf("Ending\n");
 
-    font_destroy(p->font);
-    SDL_DestroyWindow(p->win);
+    font_destroy(&p->font);
     SDL_DestroyRenderer(p->renderer);
+    SDL_DestroyWindow(p->win);
     TTF_Quit();
     SDL_Quit();
   }
@@ -184,7 +188,6 @@ void end_program(struct program *p) {
 
 int main(int argc, char *args[]) {
   struct program p;
-  
   p.bgcolor = (SDL_Color){29, 32, 33};
   p.projectile = (struct projectile) {0, 50, 10};
   p.font.color = (SDL_Color) {235, 219, 178};
@@ -198,8 +201,6 @@ int main(int argc, char *args[]) {
   while (!p.done) {
     event_handle(&p);
   }
-
   end_program(&p);
-
   return 0;
 }
